@@ -32,7 +32,7 @@ int main()
         PORTB |= 0b00100000;
 
         // go to sleep for an arbitrary amount of time
-        for (long i = 0; i < 100000; i++) {
+        for (long i = 0; i < 1000000; i++) {
             // to make sure the compiler doesn't optimize this out, continue
             // setting the 6th bit of portb to 1
             PORTB |= 0b00100000;
@@ -40,7 +40,7 @@ int main()
         // setting PortB 6th bit to 0 sets pins PortB controls to low
         PORTB &= 0b11011111;
         // go to sleep for an arbitrary amount of time
-        for (long i = 0; i < 100000; i++) {
+        for (long i = 0; i < 1000000; i++) {
             // to make sure the compiler doesn't optimize this out, continue
             // setting PORTB 6th bit to 0
             PORTB &= 0b11011111;

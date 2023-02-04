@@ -1,3 +1,18 @@
 {
-    "nuxt.isNuxtApp": false
+    "nuxt.isNuxtApp": false,
+    "C_Cpp.default.configurationProvider": "ms-vscode.makefile-tools",
+    "files.associations": {
+        ".env": "a51",
+        "usbdrv.h": "c",
+        "io.h": "c",
+        "iom328p.h": "c",
+        "oddebug.h": "c",
+        "pgmspace.h": "c",
+        "portpins.h": "c",
+        "common.h": "c",
+        "interrupt.h": "c",
+        "delay.h": "c",
+        "wdt.h": "c",
+        "xmega.h": "c"
+    }
 }
