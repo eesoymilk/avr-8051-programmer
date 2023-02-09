@@ -13,6 +13,8 @@
         "interrupt.h": "c",
         "delay.h": "c",
         "wdt.h": "c",
-        "xmega.h": "c"
+        "xmega.h": "c",
+        "usbportability.h": "c",
+        "usbconfig.h": "c"
     }
 }

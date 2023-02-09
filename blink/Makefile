@@ -7,16 +7,11 @@
 # License: GNU GPL v2 (see License.txt), GNU GPL v3 or proprietary (CommercialLicense.txt)
 
 DEVICE  = atmega328p
-F_CPU   = 12000000
-FUSE_L  = 0xdf
+FUSE_L  = 0xd2
 FUSE_H  = 0xd9
-CONF = C:/AVR/avrdude/avrdude.conf
-AVRDUDE = avrdude -C$(CONF) -v -V -p$(DEVICE) -cstk500v1 -PCOM3 -b19200
+AVRDUDE = avrdude -C C:/AVR/avrdude/avrdude.conf -v -V -p $(DEVICE) -c stk500v1 -P COM3 -b 19200
 
-CFLAGS  = -Iusbdrv -I.
-OBJECTS = usbdrv/usbdrv.o usbdrv/usbdrvasm.o usbdrv/oddebug.o main.o
-
-COMPILE = avr-gcc -Wall -Os -DF_CPU=$(F_CPU) $(CFLAGS) -mmcu=$(DEVICE)
+COMPILE = avr-gcc -Wall -Os -mmcu=$(DEVICE)
 
 ####################### Fuse values for  ATMega328 ###########################
 # ATMega328 FUSE_L (Fuse low byte):
@@ -46,24 +41,22 @@ help:
 	@echo "make flash ..... to flash the firmware (use this on metaboard)"
 	@echo "make clean ..... to delete objects and hex file"
 
-re: clean flash
-
-hex: main.hex
+hex: blink.hex
 
 program: flash fuse
 
 fuse:
 	$(AVRDUDE) -U hfuse:w:$(FUSE_H):m -U lfuse:w:$(FUSE_L):m
 
-flash: main.hex
-	$(AVRDUDE) -U flash:w:main.hex:i
+flash: blink.hex
+	$(AVRDUDE) -U flash:w:blink.hex:i
 
 clean:
-	del /Q /F main.hex main.lst main.obj main.cof main.list main.map main.eep.hex main.elf $(wildcard *.o) .\usbdrv\usbdrv.o .\usbdrv\usbdrvasm.o .\usbdrv\oddebug.o
+	del /Q /F blink.hex blink.out
 
 # Generic rule for compiling C files:
-.c.o:
-	$(COMPILE) -c $< -o $@
+blink.out:
+	$(COMPILE) blink.c -o blink.out
 
 # Generic rule for assembling Assembler source files:
 .S.o:
@@ -73,21 +66,9 @@ clean:
 # characters are not always preserved on Windows. To ensure WinAVR
 # compatibility define the file type manually.
 
-# Generic rule for compiling C to assembler, used for debugging only.
-.c.s:
-	$(COMPILE) -S $< -o $@
-
-main.elf: $(OBJECTS)	# usbdrv dependency only needed because we copy it
-	$(COMPILE) -o main.elf $(OBJECTS)
-
-main.hex: main.elf
-	del /Q /F main.hex main.eep.hex
-	avr-objcopy -j .text -j .data -O ihex main.elf main.hex
-	avr-size main.hex
-
-# debugging targets:
-disasm:	main.elf
-	avr-objdump -d main.elf
+blink.hex: blink.out
+	avr-objcopy -j .text -j .data -O ihex blink.out blink.hex
+	avr-size blink.hex
 
 cpp:
 	$(COMPILE) -E main.c

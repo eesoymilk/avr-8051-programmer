@@ -90,7 +90,7 @@ section at the end of this file).
 /* If the so-called endpoint 3 is used, it can now be configured to any other
  * endpoint number (except 0) with this macro. Default if undefined is 3.
  */
-/* #define USB_INITIAL_DATATOKEN           USBPID_DATA1 */
+// #define USB_INITIAL_DATATOKEN USBPID_DATA1
 /* The above macro defines the startup condition for data toggling on the
  * interrupt/bulk endpoints 1 and 3. Defaults to USBPID_DATA1.
  * Since the token is toggled BEFORE sending any data, the first packet is
@@ -110,7 +110,7 @@ section at the end of this file).
  * (e.g. HID), but never want to send any data. This option saves a couple
  * of bytes in flash memory and the transmit buffers in RAM.
  */
-#define USB_CFG_INTR_POLL_INTERVAL 10
+#define USB_CFG_INTR_POLL_INTERVAL 100
 /* If you compile a version with endpoint 1 (interrupt-in), this is the poll
  * interval. The value is in milliseconds and must not be less than 10 ms for
  * low speed devices.
@@ -229,7 +229,7 @@ section at the end of this file).
  * with libusb: 0x16c0/0x5dc.  Use this VID/PID pair ONLY if you understand
  * the implications!
  */
-#define USB_CFG_DEVICE_ID 0xdc, 0x05 /* = 0x05dc = 1500 */
+#define USB_CFG_DEVICE_ID 0xe1, 0x05  // original: 0xdc, 0x05 = 0x05dc = 1500
 /* This is the ID of the product, low byte first. It is interpreted in the
  * scope of the vendor ID. If you have registered your own VID with usb.org
  * or if you have licensed a PID from somebody else, define it here. Otherwise
@@ -263,8 +263,10 @@ section at the end of this file).
  * the macros. See the file USB-IDs-for-free.txt before you assign a name if
  * you use a shared VID/PID.
  */
-/*#define USB_CFG_SERIAL_NUMBER   'N', 'o', 'n', 'e' */
-/*#define USB_CFG_SERIAL_NUMBER_LEN   0 */
+#define USB_CFG_SERIAL_NUMBER                                                  \
+    'w', 'e', 'b', '.', 'e', 'e', '.', 'n', 't', 'h', 'u', '.', 'e', 'd', 'u', \
+        '.', 't', 'w'
+#define USB_CFG_SERIAL_NUMBER_LEN 18
 /* Same as above for the serial number. If you don't want a serial number,
  * undefine the macros.
  * It may be useful to provide the serial number through other means than at
@@ -272,14 +274,17 @@ section at the end of this file).
  * to fine tune control over USB descriptors such as the string descriptor
  * for the serial number.
  */
-#define USB_CFG_DEVICE_CLASS 2 /* set to 0 if deferred to interface */
-#define USB_CFG_DEVICE_SUBCLASS 2
+
+// set to 0 if deferred to interface
+// To load Usbser.sys automatically, set both class code and subclass code to 2
+#define USB_CFG_DEVICE_CLASS 2
+#define USB_CFG_DEVICE_SUBCLASS 0
 /* See USB specification if you want to conform to an existing device class.
  * Class 0xff is "vendor specific".
  */
-#define USB_CFG_INTERFACE_CLASS                   \
-    2 /* define class here if not at device level \
-       */
+
+// define class here if not at device level
+#define USB_CFG_INTERFACE_CLASS 2
 #define USB_CFG_INTERFACE_SUBCLASS 2
 #define USB_CFG_INTERFACE_PROTOCOL 1
 /* See USB specification if you want to conform to an existing device class or

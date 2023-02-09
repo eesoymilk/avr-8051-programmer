@@ -21,29 +21,15 @@ int main()
     // It is setting the bit that controls physical pin 13, and saying it is an
     // output pin using bitwise OR to turn on the 6th bit without affecting the
     // other bits in DDRB
-    DDRB |= 0b00100000;
+    DDRB = 0x20;
 
     // loop
     while (1) {
-        // by setting the 6th bit on this register to 1
-        // It is setting the bit that controls physical pin 13, and setting it
-        // to high using bitwise OR to turn on the 6th bit without affecting the
-        // other bits in PORTB
-        PORTB |= 0b00100000;
+        PORTB = 0x20;
 
-        // go to sleep for an arbitrary amount of time
-        for (long i = 0; i < 1000000; i++) {
-            // to make sure the compiler doesn't optimize this out, continue
-            // setting the 6th bit of portb to 1
-            PORTB |= 0b00100000;
-        }
-        // setting PortB 6th bit to 0 sets pins PortB controls to low
-        PORTB &= 0b11011111;
-        // go to sleep for an arbitrary amount of time
-        for (long i = 0; i < 1000000; i++) {
-            // to make sure the compiler doesn't optimize this out, continue
-            // setting PORTB 6th bit to 0
-            PORTB &= 0b11011111;
-        }
+        for (long i = 0; i < 100000; i++) { PORTB = 0x20; }
+
+        PORTB = 0;
+        for (long i = 0; i < 100000; i++) { PORTB = 0; }
     }
 }
