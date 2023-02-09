@@ -303,6 +303,36 @@ static PROGMEM const char myDescriptorConfiguration[] = {
 #endif
 };
 
+static PROGMEM const char defaultConfigurationDescriptor[] = {
+    9,                // bLength: size of the descriptor in Bytes
+    USBDESCR_CONFIG,  // bDescriptorType
+    25,
+    0,     // wTotalLength: Total length in bytes of data returned
+    1,     // bNumInterfaces
+    1,     // bConfigurationValue: argument value to select this configuration
+    0,     // iConfiguration:
+    0xA0,  // bmAttributes: Remote Wakeup, Bus Powered
+    USB_CFG_MAX_BUS_POWER / 2,  // bMaxPower: max power consumption in 2mA
+
+    /* Communications Class Interface Descriptor for CDC-ACM Control */
+    9,                   // bLength: size of the descriptor in Bytes
+    USBDESCR_INTERFACE,  // bDescriptorType
+    0,                   // bInterfaceNumber: index of this interface
+    0,  // bAlternateSetting: alternate setting for this interface
+    1,  // bNumEndpoints: number of endpoints used for this interface
+    USB_CFG_INTERFACE_CLASS, USB_CFG_INTERFACE_SUBCLASS,
+    USB_CFG_INTERFACE_PROTOCOL,
+    0,  // iInterface: Index of String Descriptor Describing this interface
+
+    /* Endpoint Descriptor */
+    7,                           // bLength
+    USBDESCR_ENDPOINT,           // bDescriptorType
+    0x81,                        // bEndpointAddress: IN endpoint number 1
+    0x03,                        // bmAttributes: Interrupt endpoint
+    8, 0,                        // wMaxPacketSize: maximum packet size
+    USB_CFG_INTR_POLL_INTERVAL,  // bInterval: in ms
+};
+
 USB_PUBLIC usbMsgLen_t usbFunctionDescriptor(usbRequest_t *rq)
 {
     // uchar *p = 0, len = 0;
@@ -318,8 +348,8 @@ USB_PUBLIC usbMsgLen_t usbFunctionDescriptor(usbRequest_t *rq)
     // usbMsgPtr = (usbMsgPtr_t)p;
     // return len;
 
-    usbMsgPtr = (usbMsgPtr_t)(myDescriptorConfiguration);
-    return sizeof(myDescriptorConfiguration);
+    usbMsgPtr = (usbMsgPtr_t)(defaultConfigurationDescriptor);
+    return sizeof(defaultConfigurationDescriptor);
 }
 
 USB_PUBLIC usbMsgLen_t usbFunctionSetup(uchar data[8])
