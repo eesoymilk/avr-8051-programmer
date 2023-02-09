@@ -92,7 +92,7 @@ static PROGMEM const char deviceDescriptor[18] = {
 static PROGMEM const char configurationDescriptor[] = {
     9,                // bLength: size of the descriptor in Bytes
     USBDESCR_CONFIG,  // bDescriptorType
-    67,
+    44,
     0,  // wTotalLength: Total length in bytes of data returned
     2,  // bNumInterfaces
     1,  // bConfigurationValue: argument value to select this configuration
@@ -311,7 +311,7 @@ static PROGMEM const char defaultConfigurationDescriptor[] = {
     1,     // bNumInterfaces
     1,     // bConfigurationValue: argument value to select this configuration
     0,     // iConfiguration:
-    0xA0,  // bmAttributes: Remote Wakeup, Bus Powered
+    0xA0,  // bmAttributes: Bus Powered
     USB_CFG_MAX_BUS_POWER / 2,  // bMaxPower: max power consumption in 2mA
 
     /* Communications Class Interface Descriptor for CDC-ACM Control */
@@ -336,7 +336,6 @@ static PROGMEM const char defaultConfigurationDescriptor[] = {
 USB_PUBLIC usbMsgLen_t usbFunctionDescriptor(usbRequest_t *rq)
 {
     // uchar *p = 0, len = 0;
-
     // if (rq->wValue.bytes[1] == USBDESCR_DEVICE) {
     //     p = (uchar *)deviceDescriptor;
     //     len = sizeof(deviceDescriptor);
@@ -344,7 +343,6 @@ USB_PUBLIC usbMsgLen_t usbFunctionDescriptor(usbRequest_t *rq)
     //     p = (uchar *)(myDescriptorConfiguration);
     //     len = sizeof(myDescriptorConfiguration);
     // }
-
     // usbMsgPtr = (usbMsgPtr_t)p;
     // return len;
 
