@@ -92,7 +92,7 @@ static PROGMEM const char deviceDescriptor[18] = {
 static PROGMEM const char configurationDescriptor[] = {
     9,                // bLength: size of the descriptor in Bytes
     USBDESCR_CONFIG,  // bDescriptorType
-    44,
+    67,
     0,  // wTotalLength: Total length in bytes of data returned
     2,  // bNumInterfaces
     1,  // bConfigurationValue: argument value to select this configuration
@@ -306,7 +306,7 @@ static PROGMEM const char myDescriptorConfiguration[] = {
 static PROGMEM const char defaultConfigurationDescriptor[] = {
     9,                // bLength: size of the descriptor in Bytes
     USBDESCR_CONFIG,  // bDescriptorType
-    25,
+    44,
     0,     // wTotalLength: Total length in bytes of data returned
     1,     // bNumInterfaces
     1,     // bConfigurationValue: argument value to select this configuration
@@ -324,10 +324,37 @@ static PROGMEM const char defaultConfigurationDescriptor[] = {
     USB_CFG_INTERFACE_PROTOCOL,
     0,  // iInterface: Index of String Descriptor Describing this interface
 
+    /* CDC Class-Specific Descriptors */
+    /* Header Functional Descriptor */
+    5,           // bLength: size of the descriptor in Bytes
+    0x24,        // bDescriptorType
+    0,           // bDescriptorSubtype: header functional descriptor
+    0x10, 0x01,  // bcdCDC: CDC spec release number in BCD
+
+    /* ACM Functional Descriptor */
+    4,     // bLength: size of the descriptor in Bytes
+    0x24,  // bDescriptorType
+    2,     // bDescriptorSubtype: ACM Functional Descriptor
+    0x02,  // bmCapabilities: Supports subset of ACM commands
+
+    /* Union Functional Descriptor */
+    5,     // bLength: size of the descriptor in Bytes
+    0x24,  // bDescriptorType
+    6,     // bDescriptorSubtype: Union Functional Descriptor
+    0,     // bControlInterface: master
+    1,     // bSubordinateInterface: slave
+
+    /* Call Management Functional Descriptor */
+    5,     // bLength: size of the descriptor in Bytes
+    0x24,  // bDescriptorType
+    1,     // bDescriptorSubtype: Call Management Functional Descriptor
+    0x03,  // bmCapabilities: DIY
+    1,     // bDataInterface: data interface index
+
     /* Endpoint Descriptor */
     7,                           // bLength
     USBDESCR_ENDPOINT,           // bDescriptorType
-    0x81,                        // bEndpointAddress: IN endpoint number 1
+    0x83,                        // bEndpointAddress: IN endpoint number 3
     0x03,                        // bmAttributes: Interrupt endpoint
     8, 0,                        // wMaxPacketSize: maximum packet size
     USB_CFG_INTR_POLL_INTERVAL,  // bInterval: in ms
