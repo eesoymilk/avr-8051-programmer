@@ -306,9 +306,9 @@ static PROGMEM const char myDescriptorConfiguration[] = {
 static PROGMEM const char defaultConfigurationDescriptor[] = {
     9,                // bLength: size of the descriptor in Bytes
     USBDESCR_CONFIG,  // bDescriptorType
-    44,
+    53,
     0,     // wTotalLength: Total length in bytes of data returned
-    1,     // bNumInterfaces
+    2,     // bNumInterfaces
     1,     // bConfigurationValue: argument value to select this configuration
     0,     // iConfiguration:
     0xA0,  // bmAttributes: Bus Powered
@@ -358,6 +358,17 @@ static PROGMEM const char defaultConfigurationDescriptor[] = {
     0x03,                        // bmAttributes: Interrupt endpoint
     8, 0,                        // wMaxPacketSize: maximum packet size
     USB_CFG_INTR_POLL_INTERVAL,  // bInterval: in ms
+
+    /* Data Class Interface Descriptor for CDC-ACM  */
+    9,                   // bLength
+    USBDESCR_INTERFACE,  // bDescriptorType
+    1,                   // bInterfaceNumber: index of this interface
+    0,     // bAlternateSetting: alternate setting for this interface
+    0,     // bNumEndpoints: number of endpoints used for this interface
+    0x0a,  // bInterfaceClass: Data Interface Class Codes
+    0,     // bInterfaceSubclass: Data Interface Sublass Codes
+    0,     // bDeviceProtocol: Data Interface Class Protocol Codes
+    0,     // iInterface: Index of String Descriptor Describing this interface
 };
 
 USB_PUBLIC usbMsgLen_t usbFunctionDescriptor(usbRequest_t *rq)
