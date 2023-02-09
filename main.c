@@ -85,7 +85,7 @@ static PROGMEM const char deviceDescriptor[18] = {
     USB_CFG_VENDOR_ID,       // idVendor (2 bytes)
     USB_CFG_DEVICE_ID,       // idProduct (2 bytes)
     USB_CFG_DEVICE_VERSION,  // bcdDevice (2 bytes)
-    0, 0, 0,                 // iManufacturer, iProduct, iSerialNumber
+    1, 2, 3,                 // iManufacturer, iProduct, iSerialNumber
     1,                       // bNumConfigurations: number of configurations
 };
 
@@ -303,24 +303,24 @@ static PROGMEM const char myDescriptorConfiguration[] = {
 #endif
 };
 
-// USB_PUBLIC usbMsgLen_t usbFunctionDescriptor(usbRequest_t *rq)
-// {
-//     uchar *p = 0, len = 0;
+USB_PUBLIC usbMsgLen_t usbFunctionDescriptor(usbRequest_t *rq)
+{
+    // uchar *p = 0, len = 0;
 
-//     if (rq->wValue.bytes[1] == USBDESCR_DEVICE) {
-//         p = (uchar *)deviceDescriptor;
-//         len = sizeof(deviceDescriptor);
-//     } else {
-//         p = (uchar *)(myDescriptorConfiguration);
-//         len = sizeof(myDescriptorConfiguration);
-//     }
+    // if (rq->wValue.bytes[1] == USBDESCR_DEVICE) {
+    //     p = (uchar *)deviceDescriptor;
+    //     len = sizeof(deviceDescriptor);
+    // } else {
+    //     p = (uchar *)(myDescriptorConfiguration);
+    //     len = sizeof(myDescriptorConfiguration);
+    // }
 
-//     usbMsgPtr = (usbMsgPtr_t)p;
-//     return len;
+    // usbMsgPtr = (usbMsgPtr_t)p;
+    // return len;
 
-//     // usbMsgPtr = (usbMsgPtr_t)(myDescriptorConfiguration);
-//     // return sizeof(myDescriptorConfiguration);
-// }
+    usbMsgPtr = (usbMsgPtr_t)(myDescriptorConfiguration);
+    return sizeof(myDescriptorConfiguration);
+}
 
 USB_PUBLIC usbMsgLen_t usbFunctionSetup(uchar data[8])
 {
