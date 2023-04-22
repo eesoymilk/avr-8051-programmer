@@ -52,6 +52,23 @@ uchar usbFunctionWrite(uchar *data, uchar len)
     {
         len = sizeof(sample_data); // If yes, limit the data length to the size of the buffer
     }
+
+    if(sample_data[3] == 0xAF)
+    {
+        if(TestLightOn == 1)
+        {
+            PORTC |= (1<<PC0);
+            PORTC |= (1<<PC1);
+            TestLightOn = 0;
+        }
+        else
+        {
+            PORTC &= ~(1<<PC0);
+            PORTC &= ~(1<<PC1);
+            TestLightOn = 1;
+        }
+    }
+    
     memcpy(&sample_data, data, len);
     return 1;
 }
