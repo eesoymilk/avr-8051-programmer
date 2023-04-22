@@ -18,7 +18,9 @@ check whether the code compiles with all options.
 #include <avr/io.h>
 #include <string.h>
 #include <avr/pgmspace.h> /* required by usbdrv.h */
-
+#include "inc/program.h"
+#include "inc/chip.h"
+#include "inc/param.h"
 // #include <avr/wdt.h>
 #include <avr/eeprom.h>
 #include <util/delay.h> /* for _delay_ms() */
@@ -48,6 +50,7 @@ static int TestLightOn;
 
 uchar usbFunctionWrite(uchar *data, uchar len)
 {
+    AT89S51_Program_erase();
     if (len > sizeof(sample_data)) // Check if the received data is larger than the sample_data buffer
     {
         len = sizeof(sample_data); // If yes, limit the data length to the size of the buffer

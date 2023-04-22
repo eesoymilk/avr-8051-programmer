@@ -13,29 +13,10 @@ FUSE_H  = 0xd9
 CONF = C:/AVR/avrdude/avrdude.conf
 AVRDUDE = avrdude -C$(CONF) -v -V -p$(DEVICE) -cstk500v1 -PCOM3 -b19200
 
-CFLAGS  = -Iusbdrv -I.
-OBJECTS = usbdrv/usbdrv.o usbdrv/usbdrvasm.o usbdrv/oddebug.o main.o
+CFLAGS  = -Iusbdrv -I. -Iinc
+OBJECTS = usbdrv/usbdrv.o usbdrv/usbdrvasm.o usbdrv/oddebug.o main.o src/chip.o src/param.o src/program.o
 
 COMPILE = avr-gcc -Wall -Os -DF_CPU=$(F_CPU) $(CFLAGS) -mmcu=$(DEVICE)
-
-####################### Fuse values for  ATMega328 ###########################
-# ATMega328 FUSE_L (Fuse low byte):
-# 0xdf = 1 1 0 1   1 1 1 1
-#        ^ ^ \ /   \--+--/
-#        | |  |       +------- CKSEL 3..0 (external crystal)
-#        | |  +--------------- SUT 1..0 (crystal osc, BOD enabled)
-#        | +------------------ CKOUT (if 0: Clock output enabled)
-#        +-------------------- CKDIV8 (if 0: divide by 8)
-# ATMega328 FUSE_H (Fuse high byte):
-# 0xd9 = 1 1 0 1   1 0 0 1 <-- BOOTRST (boot reset vector at 0x0000)
-#        ^ ^ ^ ^   ^ ^ ^------ BOOTSZ0
-#        | | | |   | +-------- BOOTSZ1
-#        | | | |   + --------- EESAVE (don't preserve EEPROM over chip erase)
-#        | | | +-------------- WDTON (if 0: watchdog always on)
-#        | | +---------------- SPIEN (allow serial programming)
-#        | +------------------ DWEN (debug wire enable)
-#        +-------------------- RSTDISBL (reset pin is enabled)
-##############################################################################
 
 # symbolic targets:
 help:
@@ -56,10 +37,10 @@ fuse:
 	$(AVRDUDE) -U hfuse:w:$(FUSE_H):m -U lfuse:w:$(FUSE_L):m
 
 flash: main.hex
-	C:\Arduino\hardware\tools\avr/bin/avrdude -CC:\Arduino\hardware\tools\avr/etc/avrdude.conf -v -patmega328p -carduino -PCOM5 -b115200 -D -Uflash:w:main.hex:i
+	$(AVRDUDE) -U flash:w:main.hex:i
 
 clean:
-	rm -f main.hex main.lst main.obj main.cof main.list main.map main.eep.hex main.elf $(wildcard *.o) .\usbdrv\usbdrv.o .\usbdrv\usbdrvasm.o .\usbdrv\oddebug.o
+	rm -f main.hex main.lst main.obj main.cof main.list main.map main.eep.hex main.elf $(wildcard *.o) .\usbdrv\usbdrv.o .\usbdrv\usbdrvasm.o .\usbdrv\oddebug.o src\chip.o src\param.o src\program.o
 
 # Generic rule for compiling C files:
 .c.o:
