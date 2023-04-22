@@ -41,7 +41,7 @@ static uchar bytesRemaining;
 static uchar requestType;
 static uchar reportId;
 static unsigned char sample_data[8] = {'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f'};
-
+static int TestLightOn;
 /* ------------------------------------------------------------------------- */
 /* ----------------------------- USB interface ----------------------------- */
 /* ------------------------------------------------------------------------- */
@@ -219,6 +219,12 @@ USB_PUBLIC usbMsgLen_t usbFunctionSetup(uchar data[8])
 int main(void)
 {
     uchar i;
+
+    DDRC |= (1<<PC0) | (1<<PC1); 
+
+    TestLightOn = 1;
+    PORTC &= ~(1<<PC0);
+    PORTC &= ~(1<<PC1);
 
     usbInit();
     usbDeviceDisconnect(); /* enforce re-enumeration, do this while interrupts
