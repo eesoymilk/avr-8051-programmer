@@ -40,7 +40,7 @@ static uchar currentAddress;
 static uchar bytesRemaining;
 static uchar requestType;
 static uchar reportId;
-static char sample_data = 'f';
+static char sample_data[8] = {'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f'};
 
 /* ------------------------------------------------------------------------- */
 /* ----------------------------- USB interface ----------------------------- */
@@ -48,14 +48,22 @@ static char sample_data = 'f';
 
 uchar usbFunctionWrite(uchar *data, uchar len)
 {
+    if (len > sizeof(sample_data)) // Check if the received data is larger than the sample_data buffer
+    {
+        len = sizeof(sample_data); // If yes, limit the data length to the size of the buffer
+    }
     memcpy(&sample_data, data, len);
     return 1;
 }
 
 uchar usbFunctionRead(uchar *data, uchar len)
 {
-    memcpy(data, &sample_data, sizeof(sample_data));
-    return sizeof(sample_data);
+    if (len > sizeof(sample_data)) // Check if the requested data size is larger than the sample_data buffer
+    {
+        len = sizeof(sample_data); // If yes, limit the data length to the size of the buffer
+    }
+    memcpy(data, &sample_data, len);
+    return len;
 }
 
 static PROGMEM const char configurationDescriptor[] = {
@@ -97,7 +105,7 @@ static PROGMEM const char configurationDescriptor[] = {
     USBDESCR_ENDPOINT,          // bDescriptorType
     0x81,                       // bEndpointAddress: IN endpoint number 1
     0x03,                       // bmAttributes: Interrupt endpoint
-    8, 0,                       // wMaxPacketSize: maximum packet size
+    0x08, 0x00,                 // wMaxPacketSize: maximum packet size                         change here   WCT
     USB_CFG_INTR_POLL_INTERVAL, // bInterval: in ms
 
     /* Endpoint Descriptor */
@@ -105,27 +113,25 @@ static PROGMEM const char configurationDescriptor[] = {
     USBDESCR_ENDPOINT,          // bDescriptorType
     0x01,                       // bEndpointAddress: OUT endpoint number 1
     0x03,                       // bmAttributes: Interrupt endpoint
-    8, 0,                       // wMaxPacketSize: maximum packet size
+    0x08, 0x00,                 // wMaxPacketSize: maximum packet size                         change here   WCT     
     USB_CFG_INTR_POLL_INTERVAL, // bInterval: in ms
 };
 
-const PROGMEM char
-    usbDescriptorHidReport[USB_CFG_HID_REPORT_DESCRIPTOR_LENGTH] = {
-        0x05, 0x01,       // USAGE_PAGE (Generic Desktop)
-        0x09, 0x00,       // USAGE (Undefined)
-        0xa1, 0x01,       // COLLECTION (Application)
-        0x15, 0x00,       //   LOGICAL_MINIMUM (0)
-        0x26, 0xff, 0x00, //   LOGICAL_MAXIMUM (255)
-        0x75, 0x08,       //   REPORT_SIZE (8)
-        0x95, 0x01,       //   REPORT_COUNT (1)
-        // 0x85, 0x01,       //   REPORT_ID (1)
-        0x09, 0x00,       //   USAGE (Undefined)
-        0x82, 0x02, 0x01, //   INPUT (Data, Var, Abs, Buf)
-        // 0x85, 0x02,       //   REPORT_ID (2)
-        0x09, 0x00,       //   USAGE (Undefined)
-        0x92, 0x02, 0x01, //   OUTPUT (Data, Var, Abs, Buf)
-        0xc0              // END_COLLECTION
+const PROGMEM char usbDescriptorHidReport[USB_CFG_HID_REPORT_DESCRIPTOR_LENGTH] = {
+    0x05, 0x01,       // USAGE_PAGE (Generic Desktop)
+    0x09, 0x00,       // USAGE (Undefined)
+    0xa1, 0x01,       // COLLECTION (Application)
+    0x15, 0x00,       //   LOGICAL_MINIMUM (0)
+    0x26, 0xff, 0x00, //   LOGICAL_MAXIMUM (255)
+    0x75, 0x40,       //   REPORT_SIZE (32)                                                     change here   WCT
+    0x95, 0x01,       //   REPORT_COUNT (1)
+    0x09, 0x00,       //   USAGE (Undefined)
+    0x82, 0x02, 0x01, //   INPUT (Data, Var, Abs, Buf)
+    0x09, 0x00,       //   USAGE (Undefined)
+    0x92, 0x02, 0x01, //   OUTPUT (Data, Var, Abs, Buf)
+    0xc0              // END_COLLECTION
 };
+
 
 USB_PUBLIC usbMsgLen_t usbFunctionDescriptor(usbRequest_t *rq)
 {
@@ -152,15 +158,12 @@ USB_PUBLIC usbMsgLen_t usbFunctionSetup(uchar data[8])
 
     if (rqType != USBRQ_TYPE_CLASS)
         return 0;
-
     if (rq->bRequest == USBRQ_HID_GET_REPORT)
     {
-
         return USB_NO_MSG;
     }
     else if (rq->bRequest == USBRQ_HID_SET_REPORT)
     {
-
         return USB_NO_MSG;
     }
     // the driver counts the total number of bytes for us
