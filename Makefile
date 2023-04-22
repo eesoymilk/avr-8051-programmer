@@ -18,6 +18,25 @@ OBJECTS = usbdrv/usbdrv.o usbdrv/usbdrvasm.o usbdrv/oddebug.o main.o src/chip.o 
 
 COMPILE = avr-gcc -Wall -Os -DF_CPU=$(F_CPU) $(CFLAGS) -mmcu=$(DEVICE)
 
+####################### Fuse values for  ATMega328 ###########################
+# ATMega328 FUSE_L (Fuse low byte):
+# 0xdf = 1 1 0 1   1 1 1 1
+#        ^ ^ \ /   \--+--/
+#        | |  |       +------- CKSEL 3..0 (external crystal)
+#        | |  +--------------- SUT 1..0 (crystal osc, BOD enabled)
+#        | +------------------ CKOUT (if 0: Clock output enabled)
+#        +-------------------- CKDIV8 (if 0: divide by 8)
+# ATMega328 FUSE_H (Fuse high byte):
+# 0xd9 = 1 1 0 1   1 0 0 1 <-- BOOTRST (boot reset vector at 0x0000)
+#        ^ ^ ^ ^   ^ ^ ^------ BOOTSZ0
+#        | | | |   | +-------- BOOTSZ1
+#        | | | |   + --------- EESAVE (don't preserve EEPROM over chip erase)
+#        | | | +-------------- WDTON (if 0: watchdog always on)
+#        | | +---------------- SPIEN (allow serial programming)
+#        | +------------------ DWEN (debug wire enable)
+#        +-------------------- RSTDISBL (reset pin is enabled)
+##############################################################################
+
 # symbolic targets:
 help:
 	@echo "This Makefile has no default rule. Use one of the following:"
