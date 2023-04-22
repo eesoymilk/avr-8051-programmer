@@ -40,7 +40,7 @@ static uchar currentAddress;
 static uchar bytesRemaining;
 static uchar requestType;
 static uchar reportId;
-static char sample_data[8] = {'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f'};
+static unsigned char sample_data[8] = {'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f'};
 
 /* ------------------------------------------------------------------------- */
 /* ----------------------------- USB interface ----------------------------- */
