@@ -36,8 +36,10 @@ program: flash fuse
 fuse:
 	$(AVRDUDE) -U hfuse:w:$(FUSE_H):m -U lfuse:w:$(FUSE_L):m
 
+# flash: main.hex
+# 	$(AVRDUDE) -U flash:w:main.hex:i
 flash: main.hex
-	$(AVRDUDE) -U flash:w:main.hex:i
+	C:\Arduino\hardware\tools\avr/bin/avrdude -CC:\Arduino\hardware\tools\avr/etc/avrdude.conf -v -patmega328p -carduino -PCOM5 -b115200 -D -Uflash:w:main.hex:i
 
 clean:
 	rm -f main.hex main.lst main.obj main.cof main.list main.map main.eep.hex main.elf $(wildcard *.o) .\usbdrv\usbdrv.o .\usbdrv\usbdrvasm.o .\usbdrv\oddebug.o src\chip.o src\param.o src\program.o
