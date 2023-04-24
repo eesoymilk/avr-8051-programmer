@@ -7,6 +7,8 @@
 #define HAL_Verify_ERROR 2
 #define case_hex_size 8
 
+static unsigned int program_cnt = 0;
+
 unsigned char AT89S51_Program_All(void);
 unsigned char AT89S51_Program_write(void);
 unsigned char AT89S51_Program_read(void);

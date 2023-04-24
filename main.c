@@ -79,7 +79,7 @@ const unsigned char CMD_WRITE[6] = {0xaa, 0xbb, 0xcc, 0xdd, 0x00, 0x07};
 /* ------------------------------------------------------------------------- */
 
 int compare_commands(const unsigned char *a, const unsigned char *b, int len) {
-    for (int i = 0; i < len-2; i++) {
+    for (int i = 0; i < len; i++) {
         if (a[i] != b[i]) 
             return 0;
     }
@@ -102,14 +102,16 @@ int CMD_judge(unsigned char* sample_data) {
 //Step4: Write Chip Flash Area//
 //Step6: Release IO for AT89S51 can start to work//
 
-unsigned char mode;
+static unsigned char mode = IDLE;
 static int RW_cnt;
+
 uchar usbFunctionWrite(uchar *data, uchar len)
 {
     if (len > sizeof(sample_data)) // Check if the received data is larger than the sample_data buffer
         len = sizeof(sample_data); // If yes, limit the data length to the size of the buffer
     
     memcpy(&sample_data, data, len);
+
     if(mode == IDLE)
     {
         switch(CMD_judge(sample_data))
@@ -130,6 +132,11 @@ uchar usbFunctionWrite(uchar *data, uchar len)
                 RW_cnt += sample_data[7];
                 break;
             case WRITE :
+                program_cnt = 0;
+                PORTC |= (1<<PC0);
+                PORTC |= (1<<PC1);  
+                DDRB |= (1<<PB2) | (1<<PB3) | (1<<PB5);     
+                DDRB &= ~(1<<PB4);                 
                 CASE_SETTING_IO();
                 CASE_PROG_EN();
                 CASE_ERASE_FLASH ();                
@@ -141,18 +148,31 @@ uchar usbFunctionWrite(uchar *data, uchar len)
             default:
                 PORTC &= ~(1<<PC0);
                 PORTC &= ~(1<<PC1);
+                break;
         }
-    }else if(mode == READING_FLASH){
+    }else if(mode == WRITING_FLASH){
         if(RW_cnt>0)
         {
-            CASE_READ(sample_data);
-            RW_cnt--;
+            CASE_WRITE(sample_data);
+            RW_cnt -= 8;
+            if(RW_cnt == 0)
+            {
+                RW_cnt = 0;
+                mode = IDLE;
+                CASE_RELEASE_IO();
+                PORTC &= ~(1<<PC0);
+                PORTC &= ~(1<<PC1);   
+                DDRB &= ~(1<<PB0 | 1<<PB1 | 1<<PB2 | 1<<PB3 | 1<<PB4 | 1<<PB5 | 1<<PB6 | 1<<PB7);   
+            }
         }
         else
         {
             RW_cnt = 0;
             mode = IDLE;
             CASE_RELEASE_IO();
+            PORTC &= ~(1<<PC0);
+            PORTC &= ~(1<<PC1);   
+            DDRB &= ~(1<<PB0 | 1<<PB1 | 1<<PB2 | 1<<PB3 | 1<<PB4 | 1<<PB5 | 1<<PB6 | 1<<PB7);         
         }
     }else{
         PORTC &= ~(1<<PC0);
@@ -309,16 +329,17 @@ int main(void)
 {
     uchar i;
     mode = IDLE;
+    DDRB |= (1<<PB2) | (1<<PB3) | (1<<PB5);     
+    DDRB &= ~(1<<PB4);                          
+
     DDRC |= (1<<PC0) | (1<<PC1); 
+
     PORTC &= ~(1<<PC0);
     PORTC &= ~(1<<PC1);
 
-    DDRB |= (1<<PB2) | (1<<PB3) | (1<<PB5);     
     PORTB |= (1<<PB2);
     PORTB |= (1<<PB3);
     PORTB &= ~(1<<PB5);
-
-    mode = IDLE;
 
     usbInit();
     usbDeviceDisconnect(); /* enforce re-enumeration, do this while interrupts
