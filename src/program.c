@@ -31,8 +31,9 @@ void CASE_RELEASE_IO(void)
 
 unsigned char CASE_PROG_EN(void)
 {
-	unsigned char spr_r_buf;
-	spr_r_buf = AT89S51_Prog_En();
+	//unsigned char spr_r_buf;
+	//spr_r_buf = 
+	AT89S51_Prog_En();
 	// if(spr_r_buf != 0x69)
 	// {
 	// 	CASE_RELEASE_IO();
