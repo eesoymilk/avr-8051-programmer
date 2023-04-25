@@ -74,9 +74,14 @@ const unsigned char CMD_WRITE[6] = {0xaa, 0xbb, 0xcc, 0xdd, 0x00, 0x07};
 #define WRITING_FLASH 14
 #define READING_FLASH 15
 
+// set portB cmd
+#define PORTB_BRUN 16
+#define PORTB_RELEASE 17
 /* ------------------------------------------------------------------------- */
 /* ----------------------------- USB interface ----------------------------- */
 /* ------------------------------------------------------------------------- */
+
+void Set_PORTB(unsigned char Set_Cmd);
 
 int compare_commands(const unsigned char *a, const unsigned char *b, int len) {
     for (int i = 0; i < len; i++) {
@@ -127,6 +132,7 @@ uchar usbFunctionWrite(uchar *data, uchar len)
                 CASE_PROG_EN();
                 CASE_ERASE_FLASH ();
                 mode = READING_FLASH;
+                RW_cnt = 0;
                 RW_cnt = sample_data[6];
                 RW_cnt <<= 8;
                 RW_cnt += sample_data[7];
@@ -135,12 +141,12 @@ uchar usbFunctionWrite(uchar *data, uchar len)
                 program_cnt = 0;
                 PORTC |= (1<<PC0);
                 PORTC |= (1<<PC1);  
-                DDRB |= (1<<PB2) | (1<<PB3) | (1<<PB5);     
-                DDRB &= ~(1<<PB4);                 
+                Set_PORTB(PORTB_BRUN);
                 CASE_SETTING_IO();
                 CASE_PROG_EN();
                 CASE_ERASE_FLASH ();                
                 mode = WRITING_FLASH;
+                RW_cnt = 0;
                 RW_cnt = sample_data[6];
                 RW_cnt <<= 8;
                 RW_cnt += sample_data[7];                
@@ -162,7 +168,7 @@ uchar usbFunctionWrite(uchar *data, uchar len)
                 CASE_RELEASE_IO();
                 PORTC &= ~(1<<PC0);
                 PORTC &= ~(1<<PC1);   
-                DDRB &= ~(1<<PB0 | 1<<PB1 | 1<<PB2 | 1<<PB3 | 1<<PB4 | 1<<PB5 | 1<<PB6 | 1<<PB7);   
+                Set_PORTB(PORTB_RELEASE);
             }
         }
         else
@@ -172,9 +178,10 @@ uchar usbFunctionWrite(uchar *data, uchar len)
             CASE_RELEASE_IO();
             PORTC &= ~(1<<PC0);
             PORTC &= ~(1<<PC1);   
-            DDRB &= ~(1<<PB0 | 1<<PB1 | 1<<PB2 | 1<<PB3 | 1<<PB4 | 1<<PB5 | 1<<PB6 | 1<<PB7);         
+            Set_PORTB(PORTB_RELEASE);
         }
     }else{
+        mode = IDLE;
         PORTC &= ~(1<<PC0);
         PORTC &= ~(1<<PC1);
     }
@@ -329,17 +336,10 @@ int main(void)
 {
     uchar i;
     mode = IDLE;
-    DDRB |= (1<<PB2) | (1<<PB3) | (1<<PB5);     
-    DDRB &= ~(1<<PB4);                          
 
     DDRC |= (1<<PC0) | (1<<PC1); 
-
     PORTC &= ~(1<<PC0);
     PORTC &= ~(1<<PC1);
-
-    PORTB |= (1<<PB2);
-    PORTB |= (1<<PB3);
-    PORTB &= ~(1<<PB5);
 
     usbInit();
     usbDeviceDisconnect(); /* enforce re-enumeration, do this while interrupts
@@ -358,4 +358,24 @@ int main(void)
     return 0;
 }
 
+
+void Set_PORTB(unsigned char Set_Cmd)
+{
+    if(Set_Cmd == PORTB_BRUN)
+    {
+        DDRB |= (1<<PB2) | (1<<PB3) | (1<<PB5);     
+        DDRB &= ~(1<<PB4); 
+
+        PORTB |= (1<<PB2);
+        PORTB |= (1<<PB3);
+        PORTB &= ~(1<<PB5);    
+    }
+    else if(Set_Cmd == PORTB_RELEASE)
+    {
+        DDRB &= ~(1<<PB2) | (1<<PB3) | (1<<PB5);     
+    }else{
+        PORTC |= (1<<PC0);
+        PORTC |= (1<<PC1);
+    }
+}
 /* ------------------------------------------------------------------------- */
