@@ -24,7 +24,7 @@ check whether the code compiles with all options.
 // #include <avr/wdt.h>
 #include <avr/eeprom.h>
 #include <util/delay.h> /* for _delay_ms() */
-
+#include <avr/wdt.h>
 #include "usbdrv.h"
 #if USE_INCLUDE
 #include "usbdrv.c"
@@ -45,6 +45,7 @@ check whether the code compiles with all options.
 //----------------------------------------end modify-------------------------------------//
 static uchar reportId;
 static unsigned char sample_data[8] = {0x77, 0x77, 0x77, 0x77, 0x77, 0x77, 0x77, 0x77};
+static unsigned int program_cnt = 0;
 unsigned char erase_flag;
 unsigned char write_flag;
 unsigned char read_flag;
@@ -73,6 +74,7 @@ const unsigned char CMD_WRITE[6] = {0xaa, 0xbb, 0xcc, 0xdd, 0x00, 0x07};
 #define IDLE 13
 #define WRITING_FLASH 14
 #define READING_FLASH 15
+#define TEST 18
 
 // set portB cmd
 #define PORTB_BRUN 16
@@ -107,7 +109,7 @@ int CMD_judge(unsigned char* sample_data) {
 //Step4: Write Chip Flash Area//
 //Step6: Release IO for AT89S51 can start to work//
 
-static unsigned char mode = IDLE;
+static unsigned char mode;
 static int RW_cnt;
 
 uchar usbFunctionWrite(uchar *data, uchar len)
@@ -117,73 +119,50 @@ uchar usbFunctionWrite(uchar *data, uchar len)
     
     memcpy(&sample_data, data, len);
 
-    if(mode == IDLE)
+    if(mode == IDLE || mode == TEST)
     {
         switch(CMD_judge(sample_data))
         {
-            case ERASE_FLASH :
-                CASE_SETTING_IO();
-                CASE_PROG_EN();
-                CASE_ERASE_FLASH ();
-                CASE_RELEASE_IO();
-                break;
-            case READ :
-                CASE_SETTING_IO();
-                CASE_PROG_EN();
-                CASE_ERASE_FLASH ();
-                mode = READING_FLASH;
-                RW_cnt = 0;
-                RW_cnt = sample_data[6];
-                RW_cnt <<= 8;
-                RW_cnt += sample_data[7];
-                break;
             case WRITE :
                 program_cnt = 0;
-                PORTC |= (1<<PC0);
-                PORTC |= (1<<PC1);  
+                AT89S51_Program_erase();
+                program_cnt = 0;
+                mode = WRITING_FLASH;
                 Set_PORTB(PORTB_BRUN);
                 CASE_SETTING_IO();
                 CASE_PROG_EN();
-                CASE_ERASE_FLASH ();                
-                mode = WRITING_FLASH;
+                CASE_ERASE_FLASH ();
                 RW_cnt = 0;
                 RW_cnt = sample_data[6];
                 RW_cnt <<= 8;
                 RW_cnt += sample_data[7];                
                 break;
-            default:
-                PORTC &= ~(1<<PC0);
-                PORTC &= ~(1<<PC1);
-                break;
+            default :
+                mode = TEST;
         }
     }else if(mode == WRITING_FLASH){
-        if(RW_cnt>0)
+        if(RW_cnt <= 0)
         {
-            CASE_WRITE(sample_data);
-            RW_cnt -= 8;
-            if(RW_cnt == 0)
-            {
-                RW_cnt = 0;
-                mode = IDLE;
-                CASE_RELEASE_IO();
-                PORTC &= ~(1<<PC0);
-                PORTC &= ~(1<<PC1);   
-                Set_PORTB(PORTB_RELEASE);
-            }
+            while (1){PORTC |= (1<<PC0); PORTC |= (1<<PC1);}
         }
-        else
+
+        CASE_WRITE(sample_data, program_cnt);
+        program_cnt += 8;
+        RW_cnt -= 8;
+        
+        if(RW_cnt <= 0)
         {
             RW_cnt = 0;
             mode = IDLE;
             CASE_RELEASE_IO();
-            PORTC &= ~(1<<PC0);
-            PORTC &= ~(1<<PC1);   
             Set_PORTB(PORTB_RELEASE);
+            // for(int k = 0; k<8; k++){sample_data[k] = 0x77;}
+            program_cnt = 0;
+            // wdt_enable(WDTO_15MS);
+            // while (1) {} 
         }
     }else{
-        mode = IDLE;
-        PORTC &= ~(1<<PC0);
-        PORTC &= ~(1<<PC1);
+        mode = TEST;
     }
 
     return 1;
@@ -334,6 +313,7 @@ USB_PUBLIC usbMsgLen_t usbFunctionSetup(uchar data[8])
 
 int main(void)
 {
+
     uchar i;
     mode = IDLE;
 
@@ -354,6 +334,19 @@ int main(void)
     for (;;)
     { /* main event loop */
         usbPoll();
+        if(mode == IDLE){
+            PORTC |= (1<<PC0);
+            PORTC |= (1<<PC1);   
+        }else if(mode == WRITING_FLASH){
+            PORTC &= ~(1<<PC0);
+            PORTC &= ~(1<<PC1);            
+        }else if(mode == TEST){
+            PORTC &= ~(1<<PC0); PORTC |= (1<<PC1);
+        }else{
+            while(1){
+                PORTC |= (1<<PC0); PORTC &= ~(1<<PC1);
+            }
+        }
     }
     return 0;
 }
@@ -372,7 +365,7 @@ void Set_PORTB(unsigned char Set_Cmd)
     }
     else if(Set_Cmd == PORTB_RELEASE)
     {
-        DDRB &= ~(1<<PB2) | (1<<PB3) | (1<<PB5);     
+        DDRB &= ~((1<<PB1) | (1<<PB2) | (1<<PB3) | (1<<PB4) | (1<<PB5) | (1<<PB6) | (1<<PB7));
     }else{
         PORTC |= (1<<PC0);
         PORTC |= (1<<PC1);
