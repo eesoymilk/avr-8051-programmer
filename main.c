@@ -124,6 +124,7 @@ uchar usbFunctionWrite(uchar *data, uchar len)
         switch(CMD_judge(sample_data))
         {
             case WRITE :
+                PORTC &= ~(1<<PC1);     //additional setting for Program Mode
                 program_cnt = 0;
                 AT89S51_Program_erase();
                 program_cnt = 0;
@@ -319,7 +320,7 @@ int main(void)
 
     DDRC |= (1<<PC0) | (1<<PC1); 
     PORTC &= ~(1<<PC0);
-    PORTC &= ~(1<<PC1);
+    PORTC |= (1<<PC1);
 
     usbInit();
     usbDeviceDisconnect(); /* enforce re-enumeration, do this while interrupts
@@ -334,12 +335,11 @@ int main(void)
     for (;;)
     { /* main event loop */
         usbPoll();
+
         if(mode == IDLE){
-            PORTC |= (1<<PC0);
             PORTC |= (1<<PC1);   
         }else if(mode == WRITING_FLASH){
-            PORTC &= ~(1<<PC0);
-            PORTC &= ~(1<<PC1);            
+            PORTC &= ~(1<<PC1);
         }else if(mode == TEST){
             PORTC &= ~(1<<PC0); PORTC |= (1<<PC1);
         }else{
