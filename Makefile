@@ -13,8 +13,8 @@ FUSE_H  = 0xd9
 CONF = C:/AVR/avrdude/avrdude.conf
 AVRDUDE = avrdude -C$(CONF) -v -V -p$(DEVICE) -cstk500v1 -PCOM3 -b19200
 
-CFLAGS  = -Iusbdrv -I.
-OBJECTS = usbdrv/usbdrv.o usbdrv/usbdrvasm.o usbdrv/oddebug.o main.o
+CFLAGS  = -Iusbdrv -I. -Iinc
+OBJECTS = usbdrv/usbdrv.o usbdrv/usbdrvasm.o usbdrv/oddebug.o main.o src/chip.o src/param.o src/program.o
 
 COMPILE = avr-gcc -Wall -Os -DF_CPU=$(F_CPU) $(CFLAGS) -mmcu=$(DEVICE)
 
@@ -55,11 +55,13 @@ program: flash fuse
 fuse:
 	$(AVRDUDE) -U hfuse:w:$(FUSE_H):m -U lfuse:w:$(FUSE_L):m
 
+# flash: main.hex
+# 	$(AVRDUDE) -U flash:w:main.hex:i
 flash: main.hex
-	$(AVRDUDE) -U flash:w:main.hex:i
+	C:\Arduino\hardware\tools\avr/bin/avrdude -CC:\Arduino\hardware\tools\avr/etc/avrdude.conf -v -patmega328p -carduino -PCOM5 -b115200 -D -Uflash:w:main.hex:i
 
 clean:
-	del /Q /F main.hex main.lst main.obj main.cof main.list main.map main.eep.hex main.elf $(wildcard *.o) .\usbdrv\usbdrv.o .\usbdrv\usbdrvasm.o .\usbdrv\oddebug.o
+	rm -f main.hex main.lst main.obj main.cof main.list main.map main.eep.hex main.elf $(wildcard *.o) .\usbdrv\usbdrv.o .\usbdrv\usbdrvasm.o .\usbdrv\oddebug.o src\chip.o src\param.o src\program.o
 
 # Generic rule for compiling C files:
 .c.o:
@@ -81,7 +83,7 @@ main.elf: $(OBJECTS)	# usbdrv dependency only needed because we copy it
 	$(COMPILE) -o main.elf $(OBJECTS)
 
 main.hex: main.elf
-	del /Q /F main.hex main.eep.hex
+	rm -f main.hex main.eep.hex
 	avr-objcopy -j .text -j .data -O ihex main.elf main.hex
 	avr-size main.hex
 

@@ -18,11 +18,13 @@ check whether the code compiles with all options.
 #include <avr/io.h>
 #include <string.h>
 #include <avr/pgmspace.h> /* required by usbdrv.h */
-
+#include "inc/program.h"
+#include "inc/chip.h"
+#include "inc/param.h"
 // #include <avr/wdt.h>
 #include <avr/eeprom.h>
 #include <util/delay.h> /* for _delay_ms() */
-
+#include <avr/wdt.h>
 #include "usbdrv.h"
 #if USE_INCLUDE
 #include "usbdrv.c"
@@ -36,26 +38,145 @@ check whether the code compiles with all options.
 #define REQUEST_TYPE_VENDOR 4         // vendor request for get/set debug data
 
 /* The following variables store the status of the current data transfer */
-static uchar currentAddress;
-static uchar bytesRemaining;
-static uchar requestType;
+//----------------------------------------WCT modify ------------------------------------//
+//static uchar currentAddress;
+//static uchar bytesRemaining;
+//static uchar requestType;
+//----------------------------------------end modify-------------------------------------//
 static uchar reportId;
-static char sample_data = 'f';
+static unsigned char sample_data[8] = {0x77, 0x77, 0x77, 0x77, 0x77, 0x77, 0x77, 0x77};
+static unsigned int program_cnt = 0;
+unsigned char erase_flag;
+unsigned char write_flag;
+unsigned char read_flag;
 
+// command operation codes
+const unsigned char CMD_SETTING_IO[6] = {0xaa, 0xbb, 0xcc, 0xdd, 0x00, 0x01};
+const unsigned char CMD_RELEASE_IO[6] = {0xaa, 0xbb, 0xcc, 0xdd, 0x00, 0x02};
+const unsigned char CMD_PROG_EN[6] = {0xaa, 0xbb, 0xcc, 0xdd, 0x00, 0x03};
+const unsigned char CMD_ERASE_FLASH[6] = {0xaa, 0xbb, 0xcc, 0xdd, 0x00, 0x04};
+const unsigned char CMD_RELEASE_PORT[6] = {0xaa, 0xbb, 0xcc, 0xdd, 0x00, 0x05};
+//                                 cmd   cmd   cmd   cmd    no   read    h_b_n  l_b_n
+const unsigned char CMD_READ[6] = {0xaa, 0xbb, 0xcc, 0xdd, 0x00, 0x06};
+//                                 cmd   cmd   cmd   cmd    no   write   h_b_n  l_b_n
+const unsigned char CMD_WRITE[6] = {0xaa, 0xbb, 0xcc, 0xdd, 0x00, 0x07};
+
+// operation
+#define SETTING_IO 6
+#define RELEASE_IO 7
+#define PROG_EN 8
+#define ERASE_FLASH 9
+#define READ 10
+#define WRITE 11
+#define RELEASE_PORT 12 
+
+// mode 
+#define IDLE 13
+#define WRITING_FLASH 14
+#define READING_FLASH 15
+#define TEST 18
+
+// set portB cmd
+#define PORTB_BRUN 16
+#define PORTB_RELEASE 17
 /* ------------------------------------------------------------------------- */
 /* ----------------------------- USB interface ----------------------------- */
 /* ------------------------------------------------------------------------- */
 
+void Set_PORTB(unsigned char Set_Cmd);
+
+int compare_commands(const unsigned char *a, const unsigned char *b, int len) {
+    for (int i = 0; i < len; i++) {
+        if (a[i] != b[i]) 
+            return 0;
+    }
+    return 1;
+}
+
+int CMD_judge(unsigned char* sample_data) {
+    if (compare_commands(sample_data, CMD_SETTING_IO, 6)) {return SETTING_IO;}
+    if (compare_commands(sample_data, CMD_RELEASE_IO, 6)) {return RELEASE_IO;}
+    if (compare_commands(sample_data, CMD_PROG_EN, 6)) {return PROG_EN;}
+    if (compare_commands(sample_data, CMD_ERASE_FLASH, 6)) {return ERASE_FLASH;}
+    if (compare_commands(sample_data, CMD_READ, 6)) {return READ;}
+    if (compare_commands(sample_data, CMD_WRITE, 6)) {return WRITE;}
+    if (compare_commands(sample_data, CMD_RELEASE_PORT, 6)) {return RELEASE_PORT;}
+    return -1;
+}
+//Step1: Setting IO for Program Mode//
+//Step2: Programming Enable//
+//Step3: Erase Chip Flash Area//
+//Step4: Write Chip Flash Area//
+//Step6: Release IO for AT89S51 can start to work//
+
+static unsigned char mode;
+static int RW_cnt;
+
 uchar usbFunctionWrite(uchar *data, uchar len)
 {
+    if (len > sizeof(sample_data)) // Check if the received data is larger than the sample_data buffer
+        len = sizeof(sample_data); // If yes, limit the data length to the size of the buffer
+    
     memcpy(&sample_data, data, len);
+
+    if(mode == IDLE || mode == TEST)
+    {
+        switch(CMD_judge(sample_data))
+        {
+            case WRITE :
+                PORTC &= ~(1<<PC1);     //additional setting for Program Mode
+                program_cnt = 0;
+                AT89S51_Program_erase();
+                program_cnt = 0;
+                mode = WRITING_FLASH;
+                Set_PORTB(PORTB_BRUN);
+                CASE_SETTING_IO();
+                CASE_PROG_EN();
+                CASE_ERASE_FLASH ();
+                RW_cnt = 0;
+                RW_cnt = sample_data[6];
+                RW_cnt <<= 8;
+                RW_cnt += sample_data[7];                
+                break;
+            default :
+                mode = TEST;
+        }
+    }else if(mode == WRITING_FLASH){
+        if(RW_cnt <= 0)
+        {
+            while (1){PORTC |= (1<<PC0); PORTC |= (1<<PC1);}
+        }
+
+        CASE_WRITE(sample_data, program_cnt);
+        program_cnt += 8;
+        RW_cnt -= 8;
+        
+        if(RW_cnt <= 0)
+        {
+            RW_cnt = 0;
+            mode = IDLE;
+            CASE_RELEASE_IO();
+            Set_PORTB(PORTB_RELEASE);
+            // for(int k = 0; k<8; k++){sample_data[k] = 0x77;}
+            program_cnt = 0;
+            // wdt_enable(WDTO_15MS);
+            // while (1) {} 
+        }
+    }else{
+        mode = TEST;
+    }
+
     return 1;
 }
 
 uchar usbFunctionRead(uchar *data, uchar len)
 {
-    memcpy(data, &sample_data, sizeof(sample_data));
-    return sizeof(sample_data);
+    if (len > sizeof(sample_data)) // Check if the requested data size is larger than the sample_data buffer
+    {
+        len = sizeof(sample_data); // If yes, limit the data length to the size of the buffer
+    }
+    memcpy(data, &sample_data, len);
+    return len;
 }
 
 static PROGMEM const char configurationDescriptor[] = {
@@ -97,7 +218,7 @@ static PROGMEM const char configurationDescriptor[] = {
     USBDESCR_ENDPOINT,          // bDescriptorType
     0x81,                       // bEndpointAddress: IN endpoint number 1
     0x03,                       // bmAttributes: Interrupt endpoint
-    8, 0,                       // wMaxPacketSize: maximum packet size
+    0x08, 0x00,                 // wMaxPacketSize: maximum packet size                         change here   WCT
     USB_CFG_INTR_POLL_INTERVAL, // bInterval: in ms
 
     /* Endpoint Descriptor */
@@ -105,27 +226,25 @@ static PROGMEM const char configurationDescriptor[] = {
     USBDESCR_ENDPOINT,          // bDescriptorType
     0x01,                       // bEndpointAddress: OUT endpoint number 1
     0x03,                       // bmAttributes: Interrupt endpoint
-    8, 0,                       // wMaxPacketSize: maximum packet size
+    0x08, 0x00,                 // wMaxPacketSize: maximum packet size                         change here   WCT     
     USB_CFG_INTR_POLL_INTERVAL, // bInterval: in ms
 };
 
-const PROGMEM char
-    usbDescriptorHidReport[USB_CFG_HID_REPORT_DESCRIPTOR_LENGTH] = {
-        0x05, 0x01,       // USAGE_PAGE (Generic Desktop)
-        0x09, 0x00,       // USAGE (Undefined)
-        0xa1, 0x01,       // COLLECTION (Application)
-        0x15, 0x00,       //   LOGICAL_MINIMUM (0)
-        0x26, 0xff, 0x00, //   LOGICAL_MAXIMUM (255)
-        0x75, 0x08,       //   REPORT_SIZE (8)
-        0x95, 0x01,       //   REPORT_COUNT (1)
-        // 0x85, 0x01,       //   REPORT_ID (1)
-        0x09, 0x00,       //   USAGE (Undefined)
-        0x82, 0x02, 0x01, //   INPUT (Data, Var, Abs, Buf)
-        // 0x85, 0x02,       //   REPORT_ID (2)
-        0x09, 0x00,       //   USAGE (Undefined)
-        0x92, 0x02, 0x01, //   OUTPUT (Data, Var, Abs, Buf)
-        0xc0              // END_COLLECTION
+const PROGMEM char usbDescriptorHidReport[USB_CFG_HID_REPORT_DESCRIPTOR_LENGTH] = {
+    0x05, 0x01,       // USAGE_PAGE (Generic Desktop)
+    0x09, 0x00,       // USAGE (Undefined)
+    0xa1, 0x01,       // COLLECTION (Application)
+    0x15, 0x00,       //   LOGICAL_MINIMUM (0)
+    0x26, 0xff, 0x00, //   LOGICAL_MAXIMUM (255)
+    0x75, 0x40,       //   REPORT_SIZE (32)                                                     change here   WCT
+    0x95, 0x01,       //   REPORT_COUNT (1)
+    0x09, 0x00,       //   USAGE (Undefined)
+    0x82, 0x02, 0x01, //   INPUT (Data, Var, Abs, Buf)
+    0x09, 0x00,       //   USAGE (Undefined)
+    0x92, 0x02, 0x01, //   OUTPUT (Data, Var, Abs, Buf)
+    0xc0              // END_COLLECTION
 };
+
 
 USB_PUBLIC usbMsgLen_t usbFunctionDescriptor(usbRequest_t *rq)
 {
@@ -152,15 +271,12 @@ USB_PUBLIC usbMsgLen_t usbFunctionSetup(uchar data[8])
 
     if (rqType != USBRQ_TYPE_CLASS)
         return 0;
-
     if (rq->bRequest == USBRQ_HID_GET_REPORT)
     {
-
         return USB_NO_MSG;
     }
     else if (rq->bRequest == USBRQ_HID_SET_REPORT)
     {
-
         return USB_NO_MSG;
     }
     // the driver counts the total number of bytes for us
@@ -177,7 +293,7 @@ USB_PUBLIC usbMsgLen_t usbFunctionSetup(uchar data[8])
 //         (uchar) ~((1 << USB_CFG_DMINUS_BIT) | (1 << USB_CFG_DPLUS_BIT));
 //     /* all pins input except USB (-> USB reset) */
 // #ifdef USB_CFG_PULLUP_IOPORT /* use usbDeviceConnect()/usbDeviceDisconnect()
-// \
+//
 //                                 if available */
 //     USBDDR = 0;              /* we do RESET by deactivating pullup */
 //     usbDeviceDisconnect();
@@ -198,7 +314,13 @@ USB_PUBLIC usbMsgLen_t usbFunctionSetup(uchar data[8])
 
 int main(void)
 {
+
     uchar i;
+    mode = IDLE;
+
+    DDRC |= (1<<PC0) | (1<<PC1); 
+    PORTC &= ~(1<<PC0);
+    PORTC |= (1<<PC1);
 
     usbInit();
     usbDeviceDisconnect(); /* enforce re-enumeration, do this while interrupts
@@ -213,8 +335,40 @@ int main(void)
     for (;;)
     { /* main event loop */
         usbPoll();
+
+        if(mode == IDLE){
+            PORTC |= (1<<PC1);   
+        }else if(mode == WRITING_FLASH){
+            PORTC &= ~(1<<PC1);
+        }else if(mode == TEST){
+            PORTC &= ~(1<<PC0); PORTC |= (1<<PC1);
+        }else{
+            while(1){
+                PORTC |= (1<<PC0); PORTC &= ~(1<<PC1);
+            }
+        }
     }
     return 0;
 }
 
+
+void Set_PORTB(unsigned char Set_Cmd)
+{
+    if(Set_Cmd == PORTB_BRUN)
+    {
+        DDRB |= (1<<PB2) | (1<<PB3) | (1<<PB5);     
+        DDRB &= ~(1<<PB4); 
+
+        PORTB |= (1<<PB2);
+        PORTB |= (1<<PB3);
+        PORTB &= ~(1<<PB5);    
+    }
+    else if(Set_Cmd == PORTB_RELEASE)
+    {
+        DDRB &= ~((1<<PB1) | (1<<PB2) | (1<<PB3) | (1<<PB4) | (1<<PB5) | (1<<PB6) | (1<<PB7));
+    }else{
+        PORTC |= (1<<PC0);
+        PORTC |= (1<<PC1);
+    }
+}
 /* ------------------------------------------------------------------------- */
