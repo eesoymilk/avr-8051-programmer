@@ -1,32 +1,18 @@
 /* Name: main.c
- * Project: Testing driver features
- * Author: Christian Starkjohann
- * Creation Date: 2008-04-29
- * Tabsize: 4
- * Copyright: (c) 2008 by OBJECTIVE DEVELOPMENT Software GmbH
- * License: GNU GPL v2 (see License.txt), GNU GPL v3 or proprietary
- * (CommercialLicense.txt)
+ * Project: USB 8051 Hex Programmer
+ * Author: Yu-wei Chang, Wei-chen Tsai
+ * Creation Date: 2023-05-08
  */
 
-/*
-This module is a do-nothing test code linking against (or including) the USB
-driver. It is used to determine the code size for various options and to
-check whether the code compiles with all options.
-*/
-// #include <avr/eeprom.h>
 #include <avr/interrupt.h> /* for sei() */
 #include <avr/io.h>
 #include <avr/pgmspace.h>  /* required by usbdrv.h */
 #include <string.h>
+#include <util/delay.h>
 
 #include "inc/chip.h"
 #include "inc/param.h"
 #include "inc/program.h"
-// #include <avr/wdt.h>
-#include <avr/eeprom.h>
-#include <avr/wdt.h>
-#include <util/delay.h> /* for _delay_ms() */
-
 #include "usbdrv.h"
 #if USE_INCLUDE
 #include "usbdrv.c"
@@ -37,55 +23,15 @@ check whether the code compiles with all options.
 #define USB_HID_REPORT_TYPE_OUTPUT 2
 #define USB_HID_REPORT_TYPE_FEATURE 3
 
-/* The following variables store the status of the current data transfer */
-//----------------------------------------WCT modify
-//------------------------------------//
-// static uchar currentAddress;
-// static uchar bytesRemaining;
-// static uchar requestType;
-//----------------------------------------end
-// modify-------------------------------------//
-static uchar reportId, reportType;
-static uchar buffer[8] = {0x77, 0x77, 0x77, 0x77, 0x77, 0x77, 0x77, 0x77};
-static uchar inputBuffer[8] = "soymilk!";
-static uchar featureBuffer = 'f';
 typedef enum { IDLE, WRITING_FLASH, READING_FLASH, TEST } State;
 typedef enum { WRITE = 'W', READ = 'R', END = 'E' } Command;
 
-State currentState = IDLE;
-
-static unsigned int program_cnt = 0;
-// uchar erase_flag;
-// uchar write_flag;
-// uchar read_flag;
-
-// command operation codes
-const uchar CMD_SETTING_IO[6] = {0xaa, 0xbb, 0xcc, 0xdd, 0x00, 0x01};
-const uchar CMD_RELEASE_IO[6] = {0xaa, 0xbb, 0xcc, 0xdd, 0x00, 0x02};
-const uchar CMD_PROG_EN[6] = {0xaa, 0xbb, 0xcc, 0xdd, 0x00, 0x03};
-const uchar CMD_ERASE_FLASH[6] = {0xaa, 0xbb, 0xcc, 0xdd, 0x00, 0x04};
-const uchar CMD_RELEASE_PORT[6] = {0xaa, 0xbb, 0xcc, 0xdd, 0x00, 0x05};
-//                                 cmd   cmd   cmd   cmd    no   read    h_b_n
-//                                 l_b_n
-const uchar CMD_READ[6] = {0xaa, 0xbb, 0xcc, 0xdd, 0x00, 0x06};
-//                                 cmd   cmd   cmd   cmd    no   write   h_b_n
-//                                 l_b_n
-const uchar CMD_WRITE[6] = {0xaa, 0xbb, 0xcc, 0xdd, 0x00, 0x07};
-
-// operation
-#define SETTING_IO 6
-#define RELEASE_IO 7
-#define PROG_EN 8
-#define ERASE_FLASH 9
-#define READ 10
-#define WRITE 11
-#define RELEASE_PORT 12
-
-// mode
-#define IDLE 13
-#define WRITING_FLASH 14
-#define READING_FLASH 15
-#define TEST 18
+static State currentState = IDLE;
+static uint32_t currentAddress = 0;
+static uint16_t hexSize;
+static uchar reportId, reportType;
+static uchar hexDataBuffer[8] = "soymilk!";
+static uchar featureBuffer[3] = {'a', 'b', 'c'};
 
 // set portB cmd
 #define PORTB_BURN 16
@@ -96,47 +42,11 @@ const uchar CMD_WRITE[6] = {0xaa, 0xbb, 0xcc, 0xdd, 0x00, 0x07};
 
 void Set_PORTB(uchar Set_Cmd);
 
-int compare_commands(const uchar *a, const uchar *b, int len)
-{
-    for (int i = 0; i < len; i++) {
-        if (a[i] != b[i]) return 0;
-    }
-    return 1;
-}
-
-int CMD_judge(uchar *buf)
-{
-    if (compare_commands(buf, CMD_SETTING_IO, 6)) {
-        return SETTING_IO;
-    }
-    if (compare_commands(buf, CMD_RELEASE_IO, 6)) {
-        return RELEASE_IO;
-    }
-    if (compare_commands(buf, CMD_PROG_EN, 6)) {
-        return PROG_EN;
-    }
-    if (compare_commands(buf, CMD_ERASE_FLASH, 6)) {
-        return ERASE_FLASH;
-    }
-    if (compare_commands(buf, CMD_READ, 6)) {
-        return READ;
-    }
-    if (compare_commands(buf, CMD_WRITE, 6)) {
-        return WRITE;
-    }
-    if (compare_commands(buf, CMD_RELEASE_PORT, 6)) {
-        return RELEASE_PORT;
-    }
-    return -1;
-}
 // Step1: Setting IO for Program Mode//
 // Step2: Programming Enable//
 // Step3: Erase Chip Flash Area//
 // Step4: Write Chip Flash Area//
 // Step6: Release IO for AT89S51 can start to work//
-
-static uchar mode;
-static int RW_cnt;
 
 uchar usbFunctionWrite(uchar *data, uchar len)
 {
@@ -146,63 +56,36 @@ uchar usbFunctionWrite(uchar *data, uchar len)
     //                            // of the buffer
 
     if (reportType == USB_HID_REPORT_TYPE_FEATURE) {
-        switch ((char)*data) {
+        memcpy(featureBuffer, data, len);
+        char command = featureBuffer[0];
+        switch (command) {
             case WRITE:
-                /* code */
-                break;
+                hexSize = (featureBuffer[1] << 8) | featureBuffer[2];
 
-            default:
-                break;
-        }
-    } else if (reportType == USB_HID_REPORT_TYPE_OUTPUT) {
-    }
-
-    memcpy(buffer, data, len);
-
-    if (mode == IDLE || mode == TEST) {
-        switch (CMD_judge(buffer)) {
-            case WRITE:
-                PORTC &= ~(1 << PC1);  // additional setting for Program Mode
-                program_cnt = 0;
                 AT89S51_Program_erase();
-                program_cnt = 0;
-                mode = WRITING_FLASH;
                 Set_PORTB(PORTB_BURN);
                 CASE_SETTING_IO();
                 CASE_PROG_EN();
                 CASE_ERASE_FLASH();
-                RW_cnt = 0;
-                RW_cnt = buffer[6];
-                RW_cnt <<= 8;
-                RW_cnt += buffer[7];
+
+                currentState = WRITING_FLASH;
+                currentAddress = 0;
                 break;
+
+            case END:
+                CASE_RELEASE_IO();
+                Set_PORTB(PORTB_RELEASE);
+                currentState = IDLE;
+                break;
+
             default:
-                mode = TEST;
+                break;
         }
-    } else if (mode == WRITING_FLASH) {
-        if (RW_cnt <= 0) {
-            while (1) {
-                PORTC |= (1 << PC0);
-                PORTC |= (1 << PC1);
-            }
-        }
-
-        CASE_WRITE(buffer, program_cnt);
-        program_cnt += 8;
-        RW_cnt -= 8;
-
-        if (RW_cnt <= 0) {
-            RW_cnt = 0;
-            mode = IDLE;
-            CASE_RELEASE_IO();
-            Set_PORTB(PORTB_RELEASE);
-            // for(int k = 0; k<8; k++){buffer[k] = 0x77;}
-            program_cnt = 0;
-            // wdt_enable(WDTO_15MS);
-            // while (1) {}
-        }
-    } else {
-        mode = TEST;
+    } else if (currentState == WRITING_FLASH) {
+        PORTC |= (1 << PC1);
+        memcpy(hexDataBuffer, data, len);
+        CASE_WRITE(hexDataBuffer, currentAddress);
+        currentAddress += 8;
     }
 
     return 1;
@@ -212,16 +95,10 @@ uchar usbFunctionWrite(uchar *data, uchar len)
 // host.
 uchar usbFunctionRead(uchar *data, uchar len)
 {
-    // // Check if the requested data size is larger than the buffer buffer
-    // if (len > sizeof(buffer)) {
-    //     // If yes, limit the data length to the size of the buffer
-    //     len = sizeof(buffer);
-    // }
-
     if (reportType == USB_HID_REPORT_TYPE_FEATURE) {
-        memcpy(data, &featureBuffer, len);
+        memcpy(data, featureBuffer, len);
     } else if (reportType == USB_HID_REPORT_TYPE_INPUT) {
-        memcpy(data, inputBuffer, len);
+        memcpy(data, hexDataBuffer, len);
     }
 
     return len;
@@ -289,7 +166,7 @@ const PROGMEM char
         0x82, 0x02, 0x01,  //   INPUT (Data, Var, Abs, Buf)
         0x09, 0x00,        //   USAGE (Undefined)
         0x92, 0x02, 0x01,  //   OUTPUT (Data, Var, Abs, Buf)
-        0x95, 0x01,        //   REPORT_COUNT (1)
+        0x95, 0x03,        //   REPORT_COUNT (3)
         0x09, 0x00,        //   USAGE (Undefined)
         0xB2, 0x02, 0x01,  //   FEATURE (Data, Var, Abs, Buf)
         0xc0               // END_COLLECTION
@@ -361,7 +238,6 @@ USB_PUBLIC usbMsgLen_t usbFunctionSetup(uchar data[8])
 int main(void)
 {
     uchar i;
-    mode = IDLE;
 
     DDRC |= (1 << PC0) | (1 << PC1);
     PORTC &= ~(1 << PC0);
@@ -379,11 +255,11 @@ int main(void)
     for (;;) { /* main event loop */
         usbPoll();
 
-        if (mode == IDLE) {
+        if (currentState == IDLE) {
             PORTC |= (1 << PC1);
-        } else if (mode == WRITING_FLASH) {
+        } else if (currentState == WRITING_FLASH) {
             PORTC &= ~(1 << PC1);
-        } else if (mode == TEST) {
+        } else if (currentState == TEST) {
             PORTC &= ~(1 << PC0);
             PORTC |= (1 << PC1);
         } else {
