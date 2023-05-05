@@ -49,8 +49,6 @@ uchar usbFunctionWrite(uchar *data, uchar len)
                 AT8051ProgrammingEnable();
                 AT8951ChipErase();
 
-                _delay_ms(500);
-
                 currentState = WRITING_FLASH;
                 currentAddress = 0;
                 break;

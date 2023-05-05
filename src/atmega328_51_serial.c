@@ -48,6 +48,8 @@ uchar AT8951ChipErase(void)
     output = AT8051SPITransfer(0x13);
     _delay_us(10);
 
+    _delay_ms(500);
+
     return output;
 }
 
