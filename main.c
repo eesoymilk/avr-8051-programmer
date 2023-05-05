@@ -3,10 +3,10 @@
  * Author: Yu-wei Chang, Wei-chen Tsai
  * Creation Date: 2023-05-08
  */
-
 #include <avr/interrupt.h> /* for sei() */
 #include <avr/io.h>
 #include <avr/pgmspace.h>  /* required by usbdrv.h */
+#include <stdbool.h>
 #include <string.h>
 #include <util/delay.h>
 
@@ -31,28 +31,12 @@ static uchar reportId, reportType;
 static uchar hexDataBuffer[8] = "soymilk!";
 static uchar featureBuffer[3] = {'a', 'b', 'c'};
 
-// set portB cmd
-#define PORTB_BURN 16
-#define PORTB_RELEASE 17
 /* ------------------------------------------------------------------------- */
 /* ----------------------------- USB interface ----------------------------- */
 /* ------------------------------------------------------------------------- */
 
-void Set_PORTB(uchar Set_Cmd);
-
-// Step1: Setting IO for Program Mode//
-// Step2: Programming Enable//
-// Step3: Erase Chip Flash Area//
-// Step4: Write Chip Flash Area//
-// Step6: Release IO for AT89S51 can start to work//
-
 uchar usbFunctionWrite(uchar *data, uchar len)
 {
-    // if (len > sizeof(buffer))  // Check if the received data is larger than
-    //                            // the buffer buffer
-    //     len = sizeof(buffer);  // If yes, limit the data length to the size
-    //                            // of the buffer
-
     if (reportType == USB_HID_REPORT_TYPE_FEATURE) {
         memcpy(featureBuffer, data, len);
         char command = featureBuffer[0];
@@ -68,6 +52,14 @@ uchar usbFunctionWrite(uchar *data, uchar len)
                 _delay_ms(500);
 
                 currentState = WRITING_FLASH;
+                currentAddress = 0;
+                break;
+
+            case READ:
+                ATMega328SPIInit();
+                AT8051SPIInit();
+
+                currentState = READING_FLASH;
                 currentAddress = 0;
                 break;
 
@@ -209,6 +201,7 @@ int main(void)
 {
     uchar i = 0;
 
+    // Hardware init
     DDRC |= (1 << PC0) | (1 << PC1);
     PORTC &= ~(1 << PC0);
     PORTC |= (1 << PC1);
@@ -228,16 +221,8 @@ int main(void)
 
         if (currentState == IDLE) {
             PORTC |= (1 << PC1);
-        } else if (currentState == WRITING_FLASH) {
-            PORTC &= ~(1 << PC1);
-        } else if (currentState == TEST) {
-            PORTC &= ~(1 << PC0);
-            PORTC |= (1 << PC1);
         } else {
-            while (1) {
-                PORTC |= (1 << PC0);
-                PORTC &= ~(1 << PC1);
-            }
+            PORTC &= ~(1 << PC1);
         }
     }
     return 0;
