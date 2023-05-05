@@ -10,9 +10,7 @@
 #include <string.h>
 #include <util/delay.h>
 
-#include "inc/chip.h"
-#include "inc/param.h"
-#include "inc/program.h"
+#include "inc/atmega328_51_serial.h"
 #include "usbdrv.h"
 #if USE_INCLUDE
 #include "usbdrv.c"
@@ -27,7 +25,7 @@ typedef enum { IDLE, WRITING_FLASH, READING_FLASH, TEST } State;
 typedef enum { WRITE = 'W', READ = 'R', END = 'E' } Command;
 
 static State currentState = IDLE;
-static uint32_t currentAddress = 0;
+static uint16_t currentAddress = 0;
 static uint16_t hexSize;
 static uchar reportId, reportType;
 static uchar hexDataBuffer[8] = "soymilk!";
@@ -62,19 +60,20 @@ uchar usbFunctionWrite(uchar *data, uchar len)
             case WRITE:
                 hexSize = (featureBuffer[1] << 8) | featureBuffer[2];
 
-                AT89S51_Program_erase();
-                Set_PORTB(PORTB_BURN);
-                CASE_SETTING_IO();
-                CASE_PROG_EN();
-                CASE_ERASE_FLASH();
+                ATMega328SPIInit();
+                AT8051SPIInit();
+                AT8051ProgrammingEnable();
+                AT8951ChipErase();
+
+                _delay_ms(500);
 
                 currentState = WRITING_FLASH;
                 currentAddress = 0;
                 break;
 
             case END:
-                CASE_RELEASE_IO();
-                Set_PORTB(PORTB_RELEASE);
+                AT8051SPIRelease();
+                ATMega328SPIRelease();
                 currentState = IDLE;
                 break;
 
@@ -84,7 +83,7 @@ uchar usbFunctionWrite(uchar *data, uchar len)
     } else if (currentState == WRITING_FLASH) {
         PORTC |= (1 << PC1);
         memcpy(hexDataBuffer, data, len);
-        CASE_WRITE(hexDataBuffer, currentAddress);
+        AT8951WriteOctet(currentAddress, hexDataBuffer);
         currentAddress += 8;
     }
 
@@ -206,52 +205,24 @@ USB_PUBLIC usbMsgLen_t usbFunctionSetup(uchar data[8])
     return 0xff;
 }
 
-/* -------------------------------------------------------------------------
- */
-
-// static void hardwareInit(void)
-// {
-//     /* activate pull-ups except on USB lines */
-//     USB_CFG_IOPORT =
-//         (uchar) ~((1 << USB_CFG_DMINUS_BIT) | (1 << USB_CFG_DPLUS_BIT));
-//     /* all pins input except USB (-> USB reset) */
-// #ifdef USB_CFG_PULLUP_IOPORT /* use usbDeviceConnect()/usbDeviceDisconnect()
-//
-//                                 if available */
-//     USBDDR = 0;              /* we do RESET by deactivating pullup */
-//     usbDeviceDisconnect();
-// #else
-//     USBDDR = (1 << USB_CFG_DMINUS_BIT) | (1 << USB_CFG_DPLUS_BIT);
-// #endif
-
-//     /* 250 ms disconnect */
-//     wdt_reset();
-//     _delay_ms(250);
-
-// #ifdef USB_CFG_PULLUP_IOPORT
-//     usbDeviceConnect();
-// #else
-//     USBDDR = 0; /*  remove USB reset condition */
-// #endif
-// }
-
 int main(void)
 {
-    uchar i;
+    uchar i = 0;
 
     DDRC |= (1 << PC0) | (1 << PC1);
     PORTC &= ~(1 << PC0);
     PORTC |= (1 << PC1);
 
     usbInit();
-    usbDeviceDisconnect(); /* enforce re-enumeration, do this while interrupts
-                              are disabled! */
-    i = 0;
-    while (--i) {          /* fake USB disconnect for > 250 ms */
-        _delay_ms(1);
-    }
+    // enforce re-enumeration, do this while interrupts are disabled !
+    usbDeviceDisconnect();
+
+    // fake USB disconnect for > 250 ms
+    while (--i) _delay_ms(1);
+
     usbDeviceConnect();
     sei();
+
     for (;;) { /* main event loop */
         usbPoll();
 
@@ -271,22 +242,3 @@ int main(void)
     }
     return 0;
 }
-
-void Set_PORTB(uchar Set_Cmd)
-{
-    if (Set_Cmd == PORTB_BURN) {
-        DDRB |= (1 << PB2) | (1 << PB3) | (1 << PB5);
-        DDRB &= ~(1 << PB4);
-
-        PORTB |= (1 << PB2);
-        PORTB |= (1 << PB3);
-        PORTB &= ~(1 << PB5);
-    } else if (Set_Cmd == PORTB_RELEASE) {
-        DDRB &= ~((1 << PB1) | (1 << PB2) | (1 << PB3) | (1 << PB4) |
-                  (1 << PB5) | (1 << PB6) | (1 << PB7));
-    } else {
-        PORTC |= (1 << PC0);
-        PORTC |= (1 << PC1);
-    }
-}
-/* ------------------------------------------------------------------------- */

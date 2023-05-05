@@ -25,7 +25,7 @@ AVRDUDE = avrdude -C$(CONF) -v -V -p$(DEVICE) -cstk500v1 -PCOM3 -b19200
 
 # CFLAGS  = -Iusbdrv -I. -Iinc
 CFLAGS = -Iusbdrv -I. -Iinc -Wall -Os -DF_CPU=$(F_CPU) -mmcu=$(DEVICE)
-OBJECTS = usbdrv/usbdrv.o usbdrv/usbdrvasm.o usbdrv/oddebug.o main.o src/chip.o src/param.o src/program.o
+OBJECTS = usbdrv/usbdrv.o usbdrv/usbdrvasm.o usbdrv/oddebug.o main.o src/atmega328_51_serial.o
 
 # COMPILE = avr-gcc -Wall -Os -DF_CPU=$(F_CPU) $(CFLAGS) -mmcu=$(DEVICE)
 
